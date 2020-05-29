@@ -7,6 +7,13 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+
+import joblib
+import tqdm
+
+
 class build_features:
     
     def __init__(self,file_path):
@@ -95,7 +102,13 @@ class build_features:
 
         gc.collect()
     
-    #def add_features(self):
+    
+    def export_pickle_file(self,file_path):
+        for id in (self.df_master.id.unique()):
+            joblib.dump(self.df_master[self.df_master.id == id].values, file_path + '/processed/{}.npy'.format(id))
+
+        logging.info("Finished exporting files...")
+
     
     def process_data(self,n_samples = None):
         self.read_data(n_samples)
@@ -104,7 +117,47 @@ class build_features:
         return self.process_data_post_merge()
 
 
+            
+        
 
+
+
+class transforms:
+
+    def normalize(self,df,mode):
+        
+        values = df.values
+
+        if mode == 'fit':
+            self.norm_scaler = MinMaxScaler(feature_range=(0, 1))
+            self.norm_scaler = self.norm_scaler.fit(values)
+        
+        if mode == 'fwd_transform':
+            normalized = self.norm_scaler.transform(values)
+            return normalized
+        
+        if mode == 'inv_transform':
+            inversed = self.norm_scaler.inverse_transform(values)
+            return inversed
+
+    def standardize(self,df,mode):
+        
+        values = df.values
+        
+        if mode == 'fit':
+            self.std_scaler = StandardScaler()
+            self.std_scaler = self.std_scaler.fit(values)
+            
+        if mode == 'fwd_transform':
+            standardized = self.std_scaler.transform(values)
+            return standardized
+        
+        if mode == 'inv_transform':
+            inversed = self.std_scaler.inverse_transform(values)
+            return inversed
+
+    
+        
 
 if __name__ == '__main__':
     #Main function to be implemented
@@ -113,10 +166,11 @@ if __name__ == '__main__':
     
     
     df_master = b_fea.process_data(10)
-    
+    b_fea.export_pickle_file(path)
+
     gc.collect()
     
-    df_master.to_csv(path + 'external/master_dataframe')
+    #df_master.to_csv(path + 'external/master_dataframe')
 
 
         
