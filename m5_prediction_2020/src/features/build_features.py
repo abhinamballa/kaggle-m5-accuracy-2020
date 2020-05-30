@@ -52,11 +52,11 @@ class build_features:
             rows = self.df_sell.shape[0],cols = self.df_sell.shape[1],name = filename))
         
         
-        filename = 'sales_train_validation'
+        filename = 'sales_train_validation_sample'
         self.df_sales = pd.read_csv(self.file_path + '/' + filename + '.csv', dtype = self.PRICE_DTYPES, nrows = n_samples)
         logging.info("Finished reading in {rows} rows and {cols} columns from {name}".format(
             rows = self.df_sales.shape[0],cols = self.df_sales.shape[1],name = filename))
-        
+        print(self.df_sales.info())
 
     def process_data_pre_merge(self):
         
@@ -95,7 +95,7 @@ class build_features:
 
         #Encode categorical columns
         self.master_transformer = transformer()
-        catcols = ['item_id','dept_id','store_id', 'cat_id', 'state_id',
+        catcols = ['dept_id','store_id', 'cat_id', 'state_id',
         'wday','month']
         #Include the following later
         #'event_name_1','event_type_1','event_name_2','event_type_2']
@@ -132,9 +132,9 @@ class build_features:
     def export_pickle_file(self,file_path):
         #Features to drop 
         drop_list = ['event_name_1','event_type_1','event_name_2','event_type_2']
-        self.df_master.set_index('d')
+        self.df_master.set_index(['id','d'])
+        self.df_master = self.df_master.drop(drop_list, axis = 1)
         for id in (self.df_master.id.unique()):
-            self.df_master.drop(drop_list, axis = 1)
             joblib.dump(self.df_master[self.df_master.id == id].values, file_path + '/processed/{}.npy'.format(id))
 
         logging.info("Finished exporting files...")
@@ -187,7 +187,7 @@ class transformer:
 
             return standardized_df
             
-        if mode == 'inv_transform':
+        if mode == 'inv':
             assert(col_name in self.standardizer_dict.keys()), 'Column not transformed.'
             std_scaler = self.standardizer_dict[col_name]
             inversed = std_scaler.inverse_transform(values)
@@ -198,7 +198,7 @@ class transformer:
 
     def one_hot_encode(self,df,col_name,mode):
     
-    
+
         values = df[col_name].values
 
         if mode == 'fit':
@@ -217,7 +217,7 @@ class transformer:
 
             return onehot_encoded_df
 
-        if mode == 'inv_transform':
+        if mode == 'inv':
             assert(col_name in self.ohe_dict.keys()), 'Column not transformed.'
             label_encoder = self.ohe_dict[col_name]
             inversed = label_encoder.inverse_transform([np.argmax(onehot_encoded[0, :])])
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     b_fea = build_features(path + 'raw/')
     
     
-    df_master = b_fea.process_data(10)
+    df_master = b_fea.process_data()
     print(df_master.info())
     b_fea.export_pickle_file(path)
 
