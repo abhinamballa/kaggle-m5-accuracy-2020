@@ -198,6 +198,7 @@ class transformer:
 
     def one_hot_encode(self,df,col_name,mode):
     
+    
         values = df[col_name].values
 
         if mode == 'fit':
