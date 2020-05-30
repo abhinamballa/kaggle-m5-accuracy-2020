@@ -19,7 +19,7 @@ class DataLoader:
         day_int = df_item[1]
         
         item_npy = joblib.load(f"something_spl/{item_id}.npy")
-        #Place demanding column as column 0. Date should be indexed. 
+        #Place demand column as column 0. Date should be indexed. 
         #Columns to be used as features - (normalized) demand, 
             # one hot encoded item_id, dept_id, cat_id, stode_id,
             #date features - (one hot encoded - wday, month, eventnames, 1 and 2, already encoded snap for CA, TX, and WI)
