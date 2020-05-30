@@ -1,14 +1,15 @@
 import torch
 import torch.nn as nn
 import tqdm
-
+import joblib
 
 
 class DataLoader:
-    def __init__(self, df, train_window = 28, predicting_window=28):
+    def __init__(self, df, file_path,train_window = 28, predicting_window=28):
         self.df = df.values #df contains the mapping of 
         self.train_window = train_window
         self.predicting_window = predicting_window
+        self.file_path = file_path
 
     def __len__(self):
         return len(self.df)
@@ -18,18 +19,22 @@ class DataLoader:
         item_id = df_item[0]
         day_int = df_item[1]
         
-        item_npy = joblib.load(f"something_spl/{item_id}.npy")
+        item_npy = joblib.load(f"{self.file_path}/{item_id}.npy")
+        print('item_npy is', item_npy)
         #Place demand column as column 0. Date should be indexed. 
         #Columns to be used as features - (normalized) demand, 
             # one hot encoded item_id, dept_id, cat_id, stode_id,
             #date features - (one hot encoded - wday, month, eventnames, 1 and 2, already encoded snap for CA, TX, and WI)
             #Selling price - (normalized) convert NaNs to 0s.
 
-        item_npy_demand = item_npy[:,0] #Assuming demand is the first column
+        item_npy_demand = item_npy[:,3] #Assuming demand is the first column
+        print('item_npy_demand is', item_npy_demand)
 
-        features = item_npy[day_int-self.train_window:day_int]
-    
+        features = item_npy[day_int-self.train_window:day_int,3:]
+        print('features is', features)
+
         predicted_demand = item_npy_demand[day_int:day_int+self.predicting_window]
+        print('predicted_demand is', predicted_demand)
 
         return {
             "features" : torch.Tensor(features),
