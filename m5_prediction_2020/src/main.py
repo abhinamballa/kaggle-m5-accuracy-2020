@@ -1,5 +1,5 @@
 from features.build_features import build_features,transformer
-from models.predict_model import DataLoader,run_model
+from models.train_model import DataLoader,run_model
 import utils
 from sklearn.preprocessing import LabelEncoder
 
