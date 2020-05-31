@@ -2,42 +2,55 @@ import torch
 import torch.nn as nn
 import tqdm
 import joblib
-
+import numpy as np
+import sklearn
 
 class DataLoader:
-    def __init__(self, df, file_path,train_window = 28, predicting_window=28):
+    def __init__(self, df, file_path,label_transfomer,train_window = 28, predicting_window=28):
         self.df = df.values #df contains the mapping of 
         self.train_window = train_window
         self.predicting_window = predicting_window
         self.file_path = file_path
+        self.label = label_transfomer
 
     def __len__(self):
         return len(self.df)
     
     def __getitem__(self, item):
         df_item = self.df[item]
-        item_id = df_item[0]
+        df_id = df_item[0]
         day_int = df_item[1]
         
-        item_npy = joblib.load(f"{self.file_path}/{item_id}.npy")
-        print('item_npy is', item_npy)
-        #Place demand column as column 0. Date should be indexed. 
+        item_npy = joblib.load(f"{self.file_path}/{df_id}.npy")
+        #print('item_npy is', item_npy)
+        
         #Columns to be used as features - (normalized) demand, 
             # one hot encoded item_id, dept_id, cat_id, stode_id,
             #date features - (one hot encoded - wday, month, eventnames, 1 and 2, already encoded snap for CA, TX, and WI)
             #Selling price - (normalized) convert NaNs to 0s.
 
-        item_npy_demand = item_npy[:,3] #Assuming demand is the first column
-        print('item_npy_demand is', item_npy_demand)
+        item_npy_demand = np.array(item_npy[:,3]) #Assuming demand is that column
+        #print('item_npy_demand is', item_npy_demand)
 
-        features = item_npy[day_int-self.train_window:day_int,3:]
-        print('features is', features)
+        features = np.array(item_npy[day_int-self.train_window:day_int,3:]).astype('float32')
+        #print('features is', features)
 
-        predicted_demand = item_npy_demand[day_int:day_int+self.predicting_window]
-        print('predicted_demand is', predicted_demand)
+        predicted_demand = np.array(item_npy_demand[day_int:day_int+self.predicting_window]).astype('float32')
+        #print('predicted_demand is', predicted_demand)
+
+        item_label = self.label.transform([df_id])
+        item_onehot = [0] * 1000   #Hard coded - needs to change
+        item_onehot[item_label[0]] = 1
+
+        list_features = []
+        for f in features:
+            one_f = []
+            one_f.extend(item_onehot)
+            one_f.extend(f)
+            list_features.append(one_f)
 
         return {
-            "features" : torch.Tensor(features),
+            "features" : torch.Tensor(list_features),
             "label" : torch.Tensor(predicted_demand)
         }
 
@@ -48,7 +61,7 @@ class DataLoader:
 
 class LSTM(nn.Module):
     #Input size needs to change
-    def __init__(self, input_size=3062, hidden_layer_size=100, output_size=28):
+    def __init__(self, input_size=1047, hidden_layer_size=100, output_size=28):
         super().__init__()
         self.hidden_layer_size = hidden_layer_size
         self.lstm = nn.LSTM(input_size, hidden_layer_size, batch_first=True)
@@ -93,11 +106,11 @@ def train_model(model,train_loader, epoch, optimizer, scheduler=None, history=No
         total_loss += loss
         
         t.set_description(f'Epoch {epoch+1} : , LR: %6f, Loss: %.4f'%(optimizer.state_dict()['param_groups'][0]['lr'],total_loss/(i+1)))
-
+        '''
         if history is not None:
             history.loc[epoch + i / len(X), 'train_loss'] = loss.data.cpu().numpy()
             history.loc[epoch + i / len(X), 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
-
+        '''
         loss.backward()
         optimizer.step()
         
@@ -135,7 +148,7 @@ def evaluate_model(model, val_loader, epoch, scheduler=None, history=None):
 
 #Run function
 
-def run_model():
+def run_model(DataLoader,train_df,valid_df):
 
     DEVICE = "cuda"
     TRAIN_BATCH_SIZE = 512
@@ -147,7 +160,7 @@ def run_model():
     model = LSTM()
     model.to(DEVICE)
 
-    train_dataset = DataLoading(train_df)
+    train_dataset = DataLoader(train_df)
 
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
@@ -158,7 +171,7 @@ def run_model():
     )
 
 
-    valid_dataset = DataLoading(valid_df)
+    valid_dataset = DataLoader(valid_df)
 
     valid_loader = torch.utils.data.DataLoader(
         dataset=valid_dataset,
